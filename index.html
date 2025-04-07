@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="style.css">
+        <title>Blackjack Game</title>
+    </head>
+    <body>
+        <header>
+            <h1>Blackjack</h1>
+        </header>
+        <main>
+            <p id="message-el">Want to play a round?</p>
+            
+            <div class="game-container">
+                <div class="game-table">
+                    <div class="dealer-section">
+                        <p id="dealer-cards-el">Dealer Cards:</p>
+                        <div id="dealer-avatar" class="dealer-avatar">
+                            <div class="head"></div>
+                            <div class="body"></div>
+                            <div class="arm-left"></div>
+                            <div class="arm-right"></div>
+                        </div>
+                        <div id="deck" class="deck"></div>
+                        <div id="dealer-cards-div" class="cards-container"></div>
+                        <p id="dealer-sum-el">Dealer Sum:</p>
+                    </div>
+                    
+                    <div class="player-section">
+                        <p id="cards-el">Your Cards:</p>
+                        <div id="cards-div" class="cards-container"></div>
+                        <p id="sum-el">Your Sum:</p>
+                    </div>
+                </div>
+                
+                <div class="control-panel">
+                    <div class="betting-section">
+                        <p id="player-el"></p>
+                        <p id="bet-el">Current Bet: $0</p>
+                        <input id="bet-input" type="number" min="5" step="5" value="10" placeholder="Bet amount" aria-label="Bet amount">
+                        <button id="bet-btn" onclick="placeBet()">PLACE BET</button>
+                    </div>
+                    
+                    <div class="controls-section">
+                        <button id="hit-btn" onclick="newCard()" disabled>HIT</button>
+                        <button id="stand-btn" onclick="stand()" disabled>STAND</button>
+                        <button id="continue-btn" onclick="continueGame()" disabled>CONTINUE</button>
+                        <button id="reset-btn" onclick="resetGame()">RESET GAME</button>
+                    </div>
+                </div>
+                
+                <div class="history-section">
+                    <h2>Game History</h2>
+                    <div class="history-stats-container">
+                        <div id="history-el" class="history-container"></div>
+                        <div id="stats-el" class="stats-container"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="rules-toggle">
+                <button onclick="toggleRules()">SHOW/HIDE RULES</button>
+                <div id="rules" class="hidden">
+                    <h3>Blackjack Rules</h3>
+                    <ul>
+                        <li>Goal: Beat the dealer without going over 21</li>
+                        <li>Card values: Number cards = face value, Face cards = 10, Ace = 1 or 11</li>
+                        <li>Blackjack (Ace + 10-value card) pays 1.5x</li>
+                        <li>Dealer must hit until 17 or higher</li>
+                        <li>Tie results in a push (bet returned)</li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+        
+        <script src="script.js"></script>
+        <script>
+            function toggleRules() {
+                document.getElementById("rules").classList.toggle("hidden");
+            }
+        </script>
+    </body>
+</html>
