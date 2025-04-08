@@ -1,6 +1,6 @@
 body {
     font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', Arial, sans-serif;
-    background-image: url("images/table.png");
+    background-image: url("/Blackjack/images/table.png");
     background-size: cover;
     font-weight: bold;
     color: white;
@@ -288,8 +288,7 @@ input {
     color: black;
     font-weight: bold;
     transform-style: preserve-3d;
-    transition: transform 0.5s ease;
-    animation: dealCard 0.5s ease-out forwards;
+    transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 .card.red {
@@ -300,7 +299,6 @@ input {
     background-color: #2063a8;
     background-image: repeating-linear-gradient(45deg, #1b579e 0, #1b579e 5px, #2063a8 0, #2063a8 10px);
     border: 3px solid white;
-    animation: dealCard 0.5s ease-out forwards;
 }
 
 .card.reveal {

@@ -40,14 +40,14 @@
                         <p id="player-el"></p>
                         <p id="bet-el">Current Bet: $0</p>
                         <input id="bet-input" type="number" min="5" step="5" value="10" placeholder="Bet amount" aria-label="Bet amount">
-                        <button id="bet-btn" onclick="placeBet()">PLACE BET</button>
+                        <button id="bet-btn" aria-label="Place your bet">PLACE BET</button>
                     </div>
                     
                     <div class="controls-section">
-                        <button id="hit-btn" onclick="newCard()" disabled>HIT</button>
-                        <button id="stand-btn" onclick="stand()" disabled>STAND</button>
-                        <button id="continue-btn" onclick="continueGame()" disabled>CONTINUE</button>
-                        <button id="reset-btn" onclick="resetGame()">RESET GAME</button>
+                        <button id="hit-btn" disabled aria-label="Hit to draw a new card">HIT</button>
+                        <button id="stand-btn" disabled aria-label="Stand to end your turn">STAND</button>
+                        <button id="continue-btn" disabled aria-label="Continue to next round">CONTINUE</button>
+                        <button id="reset-btn" aria-label="Reset the game">RESET GAME</button>
                     </div>
                 </div>
                 
@@ -61,7 +61,7 @@
             </div>
             
             <div class="rules-toggle">
-                <button onclick="toggleRules()">SHOW/HIDE RULES</button>
+                <button id="rules-toggle-btn" aria-label="Show or hide game rules">SHOW/HIDE RULES</button>
                 <div id="rules" class="hidden">
                     <h3>Blackjack Rules</h3>
                     <ul>
@@ -76,10 +76,5 @@
         </main>
         
         <script src="script.js"></script>
-        <script>
-            function toggleRules() {
-                document.getElementById("rules").classList.toggle("hidden");
-            }
-        </script>
     </body>
 </html>

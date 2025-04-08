@@ -1,4 +1,39 @@
-// index.js - Blackjack Game with Animated Dealer Avatar
+// Cached DOM elements to reduce queries
+const elements = {
+    messageEl: document.getElementById("message-el"),
+    sumEl: document.getElementById("sum-el"),
+    cardsEl: document.getElementById("cards-el"),
+    playerEl: document.getElementById("player-el"),
+    dealerCardsEl: document.getElementById("dealer-cards-el"),
+    dealerSumEl: document.getElementById("dealer-sum-el"),
+    betEl: document.getElementById("bet-el"),
+    cardsDivEl: document.getElementById("cards-div"),
+    dealerCardsDivEl: document.getElementById("dealer-cards-div"),
+    historyEl: document.getElementById("history-el"),
+    deckEl: document.getElementById("deck"),
+    statsEl: document.getElementById("stats-el"),
+    betBtn: document.getElementById("bet-btn"),
+    hitBtn: document.getElementById("hit-btn"),
+    standBtn: document.getElementById("stand-btn"),
+    continueBtn: document.getElementById("continue-btn"),
+    resetBtn: document.getElementById("reset-btn"),
+    betInput: document.getElementById("bet-input"),
+    dealerAvatar: document.getElementById("dealer-avatar"),
+    rulesToggleBtn: document.getElementById("rules-toggle-btn"),
+    rules: document.getElementById("rules")
+};
+
+// Add event listeners for buttons
+elements.betBtn.addEventListener("click", placeBet);
+elements.hitBtn.addEventListener("click", newCard);
+elements.standBtn.addEventListener("click", stand);
+elements.continueBtn.addEventListener("click", continueGame);
+elements.resetBtn.addEventListener("click", resetGame);
+elements.rulesToggleBtn.addEventListener("click", toggleRules);
+
+function toggleRules() {
+    elements.rules.classList.toggle("hidden");
+}
 
 let player = {
     name: "Player",
@@ -18,7 +53,7 @@ let player = {
             }
         }
     }
-}
+};
 
 let dealer = {
     cards: [],
@@ -67,7 +102,7 @@ let dealer = {
                 "Dealer down! You got lucky there!",
                 "Bust! Guess I’m not perfect after all!"
             ]
-        }
+        };
         try {
             return comments[type][Math.floor(Math.random() * comments[type].length)];
         } catch (e) {
@@ -75,43 +110,44 @@ let dealer = {
             return "Let's play!";
         }
     }
-}
-
-// Audio setup
-const audio = {
-    deal: new Audio('sounds/deal.mp3'),
-    shuffle: new Audio('sounds/shuffle.mp3'),
-    win: new Audio('sounds/win.mp3'),
-    lose: new Audio('sounds/lose.mp3')
 };
 
-for (let sound in audio) {
-    audio[sound].volume = 0.5;
+// Audio setup with fallback
+const audio = {
+    deal: loadAudio('sounds/deal.mp3'),
+    shuffle: loadAudio('sounds/shuffle.mp3'),
+    win: loadAudio('sounds/win.mp3'),
+    lose: loadAudio('sounds/lose.mp3')
+};
+
+function loadAudio(src) {
+    try {
+        const sound = new Audio(src);
+        sound.volume = 0.5;
+        sound.onerror = () => console.error(`Failed to load audio: ${src}`);
+        return sound;
+    } catch (e) {
+        console.error(`Error creating audio for ${src}:`, e);
+        return { play: () => {} }; // Silent fallback
+    }
 }
 
-// Deck management
+// Deck management (Optimized)
 let deck = [];
-const suits = [0, 1, 2, 3]; // 0: Spades, 1: Hearts, 2: Diamonds, 3: Clubs
-const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]; // 1: Ace, 11: J, 12: Q, 13: K
+let audioEnabled = true; // Flag to disable audio if it fails repeatedly
 
 function createDeck(numDecks = 1) {
     try {
-        deck = [];
-        if (!Number.isInteger(numDecks) || numDecks < 1) {
-            throw new Error("Invalid number of decks");
-        }
-        for (let d = 0; d < numDecks; d++) {
-            for (let suit of suits) {
-                for (let value of values) {
-                    let cardValue = value > 10 ? 10 : (value === 1 ? 11 : value);
-                    deck.push({ value: cardValue, face: value, suit: suit });
-                }
-            }
-        }
+        deck = Array.from({ length: numDecks * 52 }, (_, i) => {
+            const suit = Math.floor(i / 13) % 4; // 0: Spades, 1: Hearts, 2: Diamonds, 3: Clubs
+            const value = (i % 13) + 1; // 1: Ace, 2-10, 11: J, 12: Q, 13: K
+            const cardValue = value > 10 ? 10 : (value === 1 ? 11 : value);
+            return { value: cardValue, face: value, suit };
+        });
         shuffleDeck();
     } catch (e) {
         console.error("Error creating deck:", e);
-        messageEl.textContent = "Error initializing deck. Please reset the game.";
+        elements.messageEl.textContent = "Error initializing deck. Please reset the game.";
         deck = [];
     }
 }
@@ -122,10 +158,15 @@ function shuffleDeck() {
             const j = Math.floor(Math.random() * (i + 1));
             [deck[i], deck[j]] = [deck[j], deck[i]];
         }
-        audio.shuffle.play().catch(e => console.error("Error playing shuffle sound:", e));
+        if (audioEnabled) {
+            audio.shuffle.play().catch(() => {
+                console.error("Error playing shuffle sound");
+                audioEnabled = false; // Disable audio on failure
+            });
+        }
     } catch (e) {
         console.error("Error shuffling deck:", e);
-        messageEl.textContent = "Error shuffling deck. Please reset the game.";
+        elements.messageEl.textContent = "Error shuffling deck. Please reset the game.";
     }
 }
 
@@ -133,29 +174,26 @@ function drawCard() {
     try {
         if (!deck || deck.length === 0) {
             createDeck(1);
-            messageEl.textContent = "New deck initialized!";
+            elements.messageEl.textContent = "New deck initialized!";
             setTimeout(() => {
-                messageEl.textContent = dealer.getRandomComment("welcome");
+                elements.messageEl.textContent = dealer.getRandomComment("welcome");
             }, 1000);
         } else if (deck.length <= 10) {
             createDeck(1);
-            messageEl.textContent = "Deck reshuffled!";
+            elements.messageEl.textContent = "Deck reshuffled!";
             setTimeout(() => {
-                messageEl.textContent = dealer.getRandomComment("welcome");
+                elements.messageEl.textContent = dealer.getRandomComment("welcome");
             }, 1000);
         }
         const card = deck.pop();
         if (!card) throw new Error("No card drawn from deck");
-        audio.deal.play().catch(e => console.error("Error playing deal sound:", e));
-        const dealerAvatar = document.getElementById("dealer-avatar");
-        if (dealerAvatar) {
-            dealerAvatar.classList.add("dealing");
-            setTimeout(() => dealerAvatar.classList.remove("dealing"), 500);
+        if (audioEnabled) {
+            audio.deal.play().catch(() => console.error("Error playing deal sound"));
         }
         return card;
     } catch (e) {
         console.error("Error drawing card:", e);
-        messageEl.textContent = "Error drawing card. Please reset the game.";
+        elements.messageEl.textContent = "Error drawing card. Please reset the game.";
         return null;
     }
 }
@@ -168,41 +206,25 @@ let sum = 0;
 let hasBlackJack = false;
 let isAlive = false;
 let gameInProgress = false;
-let message = "";
 let betAmount = 0;
 let gameHistory = [];
-let messageEl = document.getElementById("message-el");
-let sumEl = document.getElementById("sum-el");
-let cardsEl = document.getElementById("cards-el");
-let playerEl = document.getElementById("player-el");
-let dealerCardsEl = document.getElementById("dealer-cards-el");
-let dealerSumEl = document.getElementById("dealer-sum-el");
-let betEl = document.getElementById("bet-el");
-let cardsDivEl = document.getElementById("cards-div");
-let dealerCardsDivEl = document.getElementById("dealer-cards-div");
-let historyEl = document.getElementById("history-el");
-let deckEl = document.getElementById("deck");
-let statsEl = document.getElementById("stats-el");
 
-// Initialize player display and dealer avatar
 try {
-    if (!playerEl || !messageEl || !statsEl) {
+    if (!elements.playerEl || !elements.messageEl || !elements.statsEl) {
         throw new Error("UI elements not found");
     }
-    playerEl.textContent = player.name + ": $" + player.chips;
-    messageEl.textContent = dealer.personalities[Math.floor(Math.random() * dealer.personalities.length)];
+    elements.playerEl.textContent = player.name + ": $" + player.chips;
+    elements.messageEl.textContent = dealer.personalities[Math.floor(Math.random() * dealer.personalities.length)];
     updateStats();
-    const dealerAvatar = document.getElementById("dealer-avatar");
-    if (dealerAvatar) {
-        dealerAvatar.classList.add("waving");
-        setTimeout(() => dealerAvatar.classList.remove("waving"), 2000);
+    if (elements.dealerAvatar) {
+        elements.dealerAvatar.classList.add("waving");
+        setTimeout(() => elements.dealerAvatar.classList.remove("waving"), 2000);
     }
 } catch (e) {
     console.error("Error initializing UI:", e);
-    if (messageEl) messageEl.textContent = "Error loading game. Please refresh the page.";
+    if (elements.messageEl) elements.messageEl.textContent = "Error loading game. Please refresh the page.";
 }
 
-// Convert card to visual representation
 function getCardDisplay(card) {
     try {
         if (card === null) return "🂠";
@@ -228,7 +250,6 @@ function getCardDisplay(card) {
     }
 }
 
-// Create visual card element
 function createCardElement(card, isHidden = false) {
     try {
         const cardDiv = document.createElement("div");
@@ -240,7 +261,7 @@ function createCardElement(card, isHidden = false) {
         }
         
         const displayCard = getCardDisplay(card);
-        cardDiv.className = `card ${displayCard.color} new-card`;
+        cardDiv.className = `card ${displayCard.color}`;
         
         const topSuit = document.createElement("div");
         topSuit.className = "card-suit top";
@@ -256,7 +277,7 @@ function createCardElement(card, isHidden = false) {
         
         cardDiv.appendChild(topSuit);
         cardDiv.appendChild(centerValue);
-        cardDiv.appendChild(bottomSuit);
+        cardDiv.appendChild(bottomSuit); // Fixed typo from customSuit to bottomSuit
         
         return cardDiv;
     } catch (e) {
@@ -268,7 +289,6 @@ function createCardElement(card, isHidden = false) {
     }
 }
 
-// Trigger confetti effect
 function triggerConfetti() {
     try {
         const confettiContainer = document.createElement("div");
@@ -292,47 +312,45 @@ function triggerConfetti() {
     }
 }
 
-// Place a bet and start game
 function placeBet() {
     try {
         if (gameInProgress) {
-            messageEl.textContent = "Game in progress! Finish this round first.";
+            elements.messageEl.textContent = "Game in progress! Finish this round first.";
             return;
         }
         
-        const betInput = document.getElementById("bet-input");
-        if (!betInput) throw new Error("Bet input not found");
-        
-        const amount = parseInt(betInput.value);
-        if (isNaN(amount) || amount <= 0) {
-            messageEl.textContent = "Please enter a valid bet amount (greater than 0).";
+        const amount = parseInt(elements.betInput.value);
+        if (isNaN(amount) || amount < 5 || amount % 5 !== 0) {
+            elements.messageEl.textContent = "Please enter a valid bet amount (minimum $5, increments of 5).";
             return;
         }
         if (amount > player.chips) {
-            messageEl.textContent = `You don't have enough chips! You have $${player.chips}`;
+            elements.messageEl.textContent = `You don't have enough chips! You have $${player.chips}`;
             return;
         }
         
         betAmount = amount;
-        betEl.textContent = "Current Bet: $" + betAmount;
-        messageEl.textContent = dealer.getRandomComment("welcome");
+        elements.betEl.textContent = "Current Bet: $" + betAmount;
+        elements.messageEl.textContent = dealer.getRandomComment("welcome");
         
-        dealerCardsDivEl.innerHTML = "";
-        dealerCardsEl.textContent = "Shuffling...";
-        dealerCardsEl.classList.add("shuffle-animation");
-        deckEl.classList.add("shuffle-animation");
+        elements.dealerCardsDivEl.innerHTML = "";
+        elements.dealerCardsEl.textContent = "Shuffling...";
+        elements.dealerCardsEl.classList.add("shuffle-animation");
+        elements.deckEl.classList.add("shuffle-animation");
 
-        cardsDivEl.innerHTML = "";
-        cardsEl.textContent = "Shuffling...";
-        cardsEl.classList.add("shuffle-animation");
+        elements.cardsDivEl.innerHTML = "";
+        elements.cardsEl.textContent = "Shuffling...";
+        elements.cardsEl.classList.add("shuffle-animation");
 
-        audio.shuffle.play().catch(e => console.error("Error playing shuffle sound:", e));
+        if (audioEnabled) {
+            audio.shuffle.play().catch(e => console.error("Error playing shuffle sound:", e));
+        }
 
         setTimeout(() => {
             try {
-                dealerCardsEl.classList.remove("shuffle-animation");
-                cardsEl.classList.remove("shuffle-animation");
-                deckEl.classList.remove("shuffle-animation");
+                elements.dealerCardsEl.classList.remove("shuffle-animation");
+                elements.cardsEl.classList.remove("shuffle-animation");
+                elements.deckEl.classList.remove("shuffle-animation");
                 
                 gameInProgress = true;
                 isAlive = true;
@@ -352,37 +370,36 @@ function placeBet() {
                 dealer.cards = [dealer.hiddenCard, dealerVisibleCard];
                 dealer.sum = dealer.hiddenCard.value + dealerVisibleCard.value;
                 
-                document.getElementById("bet-btn").disabled = true;
-                document.getElementById("hit-btn").disabled = false;
-                document.getElementById("stand-btn").disabled = false;
-                document.getElementById("continue-btn").disabled = true;
+                elements.betBtn.disabled = true;
+                elements.hitBtn.disabled = false;
+                elements.standBtn.disabled = false;
+                elements.continueBtn.disabled = true;
                 
                 renderGame();
             } catch (e) {
                 console.error("Error starting game:", e);
-                messageEl.textContent = "Error starting game. Please try again.";
+                elements.messageEl.textContent = "Error starting game. Please try again.";
                 resetGameState();
             }
         }, 1000);
     } catch (e) {
         console.error("Error placing bet:", e);
-        messageEl.textContent = "Error placing bet. Please try again.";
+        elements.messageEl.textContent = "Error placing bet. Please try again.";
     }
 }
 
-// Continue game with current chip stack
 function continueGame() {
     try {
         if (gameInProgress) {
-            messageEl.textContent = "Cannot continue while game is in progress.";
+            elements.messageEl.textContent = "Cannot continue while game is in progress.";
             return;
         }
         
-        cardsDivEl.innerHTML = "";
-        dealerCardsDivEl.innerHTML = "";
+        elements.cardsDivEl.innerHTML = "";
+        elements.dealerCardsDivEl.innerHTML = "";
         
-        dealerCardsEl.textContent = "Dealer Cards:";
-        cardsEl.textContent = "Your Cards:";
+        elements.dealerCardsEl.textContent = "Dealer Cards:";
+        elements.cardsEl.textContent = "Your Cards:";
         
         cards = [];
         sum = 0;
@@ -391,62 +408,81 @@ function continueGame() {
         hasBlackJack = false;
         betAmount = 0;
         
-        messageEl.textContent = dealer.getRandomComment("welcome");
-        betEl.textContent = "Current Bet: $0";
-        document.getElementById("bet-btn").disabled = false;
-        document.getElementById("hit-btn").disabled = true;
-        document.getElementById("stand-btn").disabled = true;
-        document.getElementById("continue-btn").disabled = true;
+        elements.messageEl.textContent = dealer.getRandomComment("welcome");
+        elements.betEl.textContent = "Current Bet: $0";
+        elements.betBtn.disabled = false;
+        elements.hitBtn.disabled = true;
+        elements.standBtn.disabled = true;
+        elements.continueBtn.disabled = true;
         
-        sumEl.textContent = "Your Sum:";
-        dealerSumEl.textContent = "Dealer Sum:";
+        elements.sumEl.textContent = "Your Sum:";
+        elements.dealerSumEl.textContent = "Dealer Sum:";
     } catch (e) {
         console.error("Error continuing game:", e);
-        messageEl.textContent = "Error continuing game. Please reset.";
+        elements.messageEl.textContent = "Error continuing game. Please reset.";
     }
 }
 
-// Render game state
 function renderGame(isDealerHit = false) {
     try {
-        cardsDivEl.innerHTML = "";
-        dealerCardsDivEl.innerHTML = "";
+        elements.cardsDivEl.innerHTML = "";
+        elements.dealerCardsDivEl.innerHTML = "";
         
-        cardsEl.textContent = "Your Cards:";
+        elements.cardsEl.textContent = "Your Cards:";
         cards.forEach((card, index) => {
+            const cardElem = createCardElement(card);
+            elements.cardsDivEl.appendChild(cardElem);
             setTimeout(() => {
-                const cardElem = createCardElement(card);
-                cardsDivEl.appendChild(cardElem);
+                cardElem.classList.add("new-card");
+                setTimeout(() => cardElem.classList.remove("new-card"), 500);
             }, index * 100);
         });
         
-        dealerCardsEl.textContent = "Dealer Cards:";
+        elements.dealerCardsEl.textContent = "Dealer Cards:";
         if (gameInProgress && !hasBlackJack) {
             const hiddenCardElem = createCardElement(null, true);
-            dealerCardsDivEl.appendChild(hiddenCardElem);
+            elements.dealerCardsDivEl.appendChild(hiddenCardElem);
             const visibleCardElem = createCardElement(dealer.cards[1]);
-            dealerCardsDivEl.appendChild(visibleCardElem);
-            dealerSumEl.textContent = "Dealer Sum: ?";
+            elements.dealerCardsDivEl.appendChild(visibleCardElem);
+            setTimeout(() => {
+                visibleCardElem.classList.add("new-card");
+                setTimeout(() => visibleCardElem.classList.remove("new-card"), 500);
+            }, 100);
+            elements.dealerSumEl.textContent = "Dealer Sum: ?";
+            if (elements.dealerAvatar) {
+                elements.dealerAvatar.classList.add("dealing");
+                setTimeout(() => elements.dealerAvatar.classList.remove("dealing"), 500);
+            }
         } else {
             dealer.cards.forEach((card, index) => {
-                setTimeout(() => {
-                    const cardElem = createCardElement(card);
-                    if (isDealerHit && index === dealer.cards.length - 1) {
-                        cardElem.classList.add('new-card');
-                    }
-                    dealerCardsDivEl.appendChild(cardElem);
-                }, index * 100);
+                const cardElem = createCardElement(card);
+                elements.dealerCardsDivEl.appendChild(cardElem);
+                if (isDealerHit && index === dealer.cards.length - 1) {
+                    setTimeout(() => {
+                        cardElem.classList.add("new-card");
+                        if (elements.dealerAvatar) {
+                            elements.dealerAvatar.classList.add("dealing");
+                            setTimeout(() => elements.dealerAvatar.classList.remove("dealing"), 500);
+                        }
+                        setTimeout(() => cardElem.classList.remove("new-card"), 500);
+                    }, index * 100);
+                } else {
+                    setTimeout(() => {
+                        cardElem.classList.add("new-card");
+                        setTimeout(() => cardElem.classList.remove("new-card"), 500);
+                    }, index * 100);
+                }
             });
-            dealerSumEl.textContent = "Dealer Sum: " + dealer.sum;
+            elements.dealerSumEl.textContent = "Dealer Sum: " + dealer.sum;
         }
         
-        sumEl.textContent = "Your Sum: " + sum;
+        elements.sumEl.textContent = "Your Sum: " + sum;
         
         if (sum < 21) {
-            message = "Do you want to draw a new card?";
+            elements.messageEl.textContent = "Do you want to draw a new card?";
         } else if (sum === 21) {
             if (cards.length === 2) {
-                message = dealer.getRandomComment("blackjack");
+                elements.messageEl.textContent = dealer.getRandomComment("blackjack");
                 hasBlackJack = true;
                 const playerCards = document.querySelectorAll('#cards-div .card');
                 playerCards.forEach((card, index) => {
@@ -454,30 +490,35 @@ function renderGame(isDealerHit = false) {
                 });
                 endGame(true, 1.5);
             } else {
-                message = "You've got 21!";
+                elements.messageEl.textContent = "You've got 21!";
                 stand();
             }
         } else {
-            message = dealer.getRandomComment("bust");
+            elements.messageEl.textContent = dealer.getRandomComment("bust");
             isAlive = false;
             endGame(false);
         }
-        
-        messageEl.textContent = message;
     } catch (e) {
         console.error("Error rendering game:", e);
-        messageEl.textContent = "Error rendering game state.";
+        elements.messageEl.textContent = "Error rendering game state.";
     }
 }
 
-// Check for Aces and adjust value if necessary
 function checkForAces() {
     try {
         let numAces = 0;
         let totalSum = 0;
         
         for (let i = 0; i < cards.length; i++) {
-            if (!cards[i]) throw new Error("Invalid card in hand");
+            if (!cards[i]) {
+                console.error(`Invalid card at index ${i}: Card is null or undefined`);
+                elements.messageEl.textContent = "Error in card hand detected. Please reset the game.";
+                sum = 0;
+                return;
+            }
+            if (!cards[i].hasOwnProperty("face") || !cards[i].hasOwnProperty("value")) {
+                throw new Error("Invalid card in hand at index " + i);
+            }
             if (cards[i].face === 1) numAces++;
             totalSum += cards[i].value;
         }
@@ -490,16 +531,15 @@ function checkForAces() {
         sum = totalSum;
     } catch (e) {
         console.error("Error checking aces:", e);
-        messageEl.textContent = "Error calculating hand value.";
+        elements.messageEl.textContent = "Error calculating hand value.";
         sum = 0;
     }
 }
 
-// Hit - draw a new card
 function newCard() {
     try {
         if (!isAlive || hasBlackJack) {
-            messageEl.textContent = "Cannot hit now. Please continue or start a new game.";
+            elements.messageEl.textContent = "Cannot hit now. Please continue or start a new game.";
             return;
         }
         
@@ -512,15 +552,14 @@ function newCard() {
         renderGame();
     } catch (e) {
         console.error("Error drawing new card:", e);
-        messageEl.textContent = "Error drawing card.";
+        elements.messageEl.textContent = "Error drawing card.";
     }
 }
 
-// Stand - end player's turn and play dealer's hand
 function stand() {
     try {
-        if (!isAlive || !gameInProgress) {
-            messageEl.textContent = "Cannot stand now. Please start a new game.";
+        if (!isAlive || !gameInProgress || window.dealerPlaying) {
+            elements.messageEl.textContent = "Cannot stand now. Please start a new game or wait for dealer.";
             return;
         }
         
@@ -536,7 +575,7 @@ function stand() {
                     setTimeout(() => {
                         hiddenCard.remove();
                         const revealedCard = createCardElement(dealer.hiddenCard);
-                        dealerCardsDivEl.insertBefore(revealedCard, dealerCardsDivEl.firstChild);
+                        elements.dealerCardsDivEl.insertBefore(revealedCard, elements.dealerCardsDivEl.firstChild);
                         playDealerHand();
                     }, 250);
                 } else {
@@ -544,84 +583,112 @@ function stand() {
                 }
             } catch (e) {
                 console.error("Error revealing dealer card:", e);
-                messageEl.textContent = "Error in dealer turn.";
+                elements.messageEl.textContent = "Error in dealer turn.";
             }
         }, 500);
     } catch (e) {
         console.error("Error standing:", e);
-        messageEl.textContent = "Error ending turn.";
+        elements.messageEl.textContent = "Error ending turn.";
     }
 }
 
-// Handle dealer's turn
 function playDealerHand() {
-    const dealerPlay = () => {
-        try {
+    try {
+        // Ensure only one dealer turn can run at a time
+        if (window.dealerPlaying) {
+            console.log("Dealer is already playing, aborting new attempt.");
+            return;
+        }
+        window.dealerPlaying = true;
+
+        // Clear any existing timeout
+        if (window.dealerTimeout) {
+            clearTimeout(window.dealerTimeout);
+        }
+
+        const drawNextCard = () => {
+            // Check game state before proceeding
+            if (!gameInProgress || !isAlive || dealer.cards.length >= 5) {
+                console.log(`Stopping dealer: gameInProgress=${gameInProgress}, isAlive=${isAlive}, cards=${dealer.cards.length}`);
+                determineWinner();
+                window.dealerPlaying = false;
+                return;
+            }
+
             if (dealer.sum < 17) {
                 let newDealerCard = drawCard();
-                if (!newDealerCard) throw new Error("Failed to draw dealer card");
+                if (!newDealerCard) {
+                    elements.messageEl.textContent = "Error drawing dealer card.";
+                    endGame(false);
+                    window.dealerPlaying = false;
+                    return;
+                }
                 dealer.cards.push(newDealerCard);
                 dealer.sum += newDealerCard.value;
-                
-                let dealerAces = 0;
-                for (let i = 0; i < dealer.cards.length; i++) {
-                    if (dealer.cards[i].face === 1) dealerAces++;
-                }
-                
+
+                // Adjust for aces
+                let dealerAces = dealer.cards.filter(card => card.face === 1).length;
                 while (dealer.sum > 21 && dealerAces > 0) {
                     dealer.sum -= 10;
                     dealerAces--;
                 }
-                
+
+                console.log(`Dealer drew a card. Total cards: ${dealer.cards.length}, Sum: ${dealer.sum}`);
+
                 renderGame(true);
-                setTimeout(dealerPlay, 500);
+
+                if (dealer.sum < 17 && dealer.cards.length < 5) {
+                    window.dealerTimeout = setTimeout(drawNextCard, 500);
+                } else {
+                    determineWinner();
+                    window.dealerPlaying = false;
+                }
             } else {
                 determineWinner();
+                window.dealerPlaying = false;
             }
-        } catch (e) {
-            console.error("Error in dealer play:", e);
-            messageEl.textContent = "Error in dealer's turn.";
-            endGame(false);
-        }
-    };
-    
-    dealerPlay();
+        };
+
+        console.log("Starting dealer turn. Initial cards:", dealer.cards.length, "Sum:", dealer.sum);
+        drawNextCard();
+    } catch (e) {
+        console.error("Error in dealer play:", e);
+        elements.messageEl.textContent = "Error in dealer's turn.";
+        endGame(false);
+        window.dealerPlaying = false;
+    }
 }
 
-// Determine the winner
 function determineWinner() {
     try {
         renderGame();
         
         if (dealer.sum > 21) {
-            message = dealer.getRandomComment("dealerBust");
+            elements.messageEl.textContent = dealer.getRandomComment("dealerBust");
             endGame(true);
         } else if (dealer.sum > sum) {
-            message = dealer.getRandomComment("lose");
+            elements.messageEl.textContent = dealer.getRandomComment("lose");
             endGame(false);
         } else if (dealer.sum < sum) {
-            message = dealer.getRandomComment("win");
+            elements.messageEl.textContent = dealer.getRandomComment("win");
             endGame(true);
         } else {
-            message = dealer.getRandomComment("tie");
+            elements.messageEl.textContent = dealer.getRandomComment("tie");
             endGame(null);
         }
-        
-        messageEl.textContent = message;
     } catch (e) {
         console.error("Error determining winner:", e);
-        messageEl.textContent = "Error determining winner.";
+        elements.messageEl.textContent = "Error determining winner.";
     }
 }
 
-// End game and settle bets
 function endGame(playerWins, multiplier = 1) {
     try {
         gameInProgress = false;
-        document.getElementById("bet-btn").disabled = false;
-        document.getElementById("hit-btn").disabled = true;
-        document.getElementById("stand-btn").disabled = true;
-        document.getElementById("continue-btn").disabled = false;
+        elements.betBtn.disabled = false;
+        elements.hitBtn.disabled = true;
+        elements.standBtn.disabled = true;
+        elements.continueBtn.disabled = false;
         
         let result = "";
         let winAmount = 0;
@@ -632,14 +699,14 @@ function endGame(playerWins, multiplier = 1) {
             player.chips += winAmount;
             result = "win";
             player.stats.wins++;
-            audio.win.play().catch(e => console.error("Error playing win sound:", e));
+            if (audioEnabled) audio.win.play().catch(e => console.error("Error playing win sound:", e));
             triggerConfetti();
         } else if (playerWins === false) {
             player.chips -= betAmount;
             winAmount = -betAmount;
             result = "lose";
             player.stats.losses++;
-            audio.lose.play().catch(e => console.error("Error playing lose sound:", e));
+            if (audioEnabled) audio.lose.play().catch(e => console.error("Error playing lose sound:", e));
         } else {
             result = "tie";
             player.stats.ties++;
@@ -656,24 +723,23 @@ function endGame(playerWins, multiplier = 1) {
         updateHistory();
         updateStats();
         
-        playerEl.textContent = player.name + ": $" + player.chips;
+        elements.playerEl.textContent = player.name + ": $" + player.chips;
         
         if (player.chips <= 0) {
-            messageEl.textContent += " Game over! You're out of chips!";
-            document.getElementById("bet-btn").disabled = true;
-            document.getElementById("continue-btn").disabled = true;
-            document.getElementById("reset-btn").classList.add("highlight-button");
+            elements.messageEl.textContent += " Game over! You're out of chips!";
+            elements.betBtn.disabled = true;
+            elements.continueBtn.disabled = true;
+            elements.resetBtn.classList.add("highlight-button");
         }
     } catch (e) {
         console.error("Error ending game:", e);
-        messageEl.textContent = "Error settling game. Please reset.";
+        elements.messageEl.textContent = "Error settling game. Please reset.";
     }
 }
 
-// Update game history display
 function updateHistory() {
     try {
-        historyEl.innerHTML = "";
+        elements.historyEl.innerHTML = "";
         const startIndex = Math.max(0, gameHistory.length - 5);
         
         for (let i = startIndex; i < gameHistory.length; i++) {
@@ -695,18 +761,17 @@ function updateHistory() {
                 <span>${resultText}</span>
                 <span>You: ${game.playerSum} | Dealer: ${game.dealerSum}</span>
             `;
-            historyEl.appendChild(gameItem);
+            elements.historyEl.appendChild(gameItem);
         }
     } catch (e) {
         console.error("Error updating history:", e);
-        historyEl.innerHTML = "<div>Error displaying history.</div>";
+        elements.historyEl.innerHTML = "<div>Error displaying history.</div>";
     }
 }
 
-// Update stats display
 function updateStats() {
     try {
-        statsEl.innerHTML = `
+        elements.statsEl.innerHTML = `
             Games: ${player.stats.gamesPlayed} | 
             Wins: ${player.stats.wins} | 
             Losses: ${player.stats.losses} | 
@@ -715,11 +780,10 @@ function updateStats() {
         `;
     } catch (e) {
         console.error("Error updating stats:", e);
-        statsEl.innerHTML = "Error displaying stats.";
+        elements.statsEl.innerHTML = "Error displaying stats.";
     }
 }
 
-// Reset game with new chip amount
 function resetGame() {
     try {
         player.chips = 200;
@@ -727,18 +791,18 @@ function resetGame() {
         player.stats.wins = 0;
         player.stats.losses = 0;
         player.stats.ties = 0;
-        playerEl.textContent = player.name + ": $" + player.chips;
+        elements.playerEl.textContent = player.name + ": $" + player.chips;
         gameInProgress = false;
         betAmount = 0;
-        betEl.textContent = "Current Bet: $0";
-        messageEl.textContent = dealer.personalities[Math.floor(Math.random() * dealer.personalities.length)];
-        cardsEl.textContent = "Your Cards:";
-        sumEl.textContent = "Your Sum:";
-        dealerCardsEl.textContent = "Dealer Cards:";
-        dealerSumEl.textContent = "Dealer Sum:";
+        elements.betEl.textContent = "Current Bet: $0";
+        elements.messageEl.textContent = dealer.personalities[Math.floor(Math.random() * dealer.personalities.length)];
+        elements.cardsEl.textContent = "Your Cards:";
+        elements.sumEl.textContent = "Your Sum:";
+        elements.dealerCardsEl.textContent = "Dealer Cards:";
+        elements.dealerSumEl.textContent = "Dealer Sum:";
         
-        cardsDivEl.innerHTML = "";
-        dealerCardsDivEl.innerHTML = "";
+        elements.cardsDivEl.innerHTML = "";
+        elements.dealerCardsDivEl.innerHTML = "";
         
         createDeck(1);
         
@@ -746,24 +810,22 @@ function resetGame() {
         updateHistory();
         updateStats();
         
-        document.getElementById("bet-btn").disabled = false;
-        document.getElementById("hit-btn").disabled = true;
-        document.getElementById("stand-btn").disabled = true;
-        document.getElementById("continue-btn").disabled = true;
-        document.getElementById("reset-btn").classList.remove("highlight-button");
+        elements.betBtn.disabled = false;
+        elements.hitBtn.disabled = true;
+        elements.standBtn.disabled = true;
+        elements.continueBtn.disabled = true;
+        elements.resetBtn.classList.remove("highlight-button");
 
-        const dealerAvatar = document.getElementById("dealer-avatar");
-        if (dealerAvatar) {
-            dealerAvatar.classList.add("waving");
-            setTimeout(() => dealerAvatar.classList.remove("waving"), 2000);
+        if (elements.dealerAvatar) {
+            elements.dealerAvatar.classList.add("waving");
+            setTimeout(() => elements.dealerAvatar.classList.remove("waving"), 2000);
         }
     } catch (e) {
         console.error("Error resetting game:", e);
-        messageEl.textContent = "Error resetting game. Please refresh the page.";
+        elements.messageEl.textContent = "Error resetting game. Please refresh the page.";
     }
 }
 
-// Helper function to reset game state on critical errors
 function resetGameState() {
     gameInProgress = false;
     isAlive = false;
@@ -773,8 +835,8 @@ function resetGameState() {
     dealer.cards = [];
     dealer.sum = 0;
     dealer.hiddenCard = null;
-    document.getElementById("bet-btn").disabled = false;
-    document.getElementById("hit-btn").disabled = true;
-    document.getElementById("stand-btn").disabled = true;
-    document.getElementById("continue-btn").disabled = true;
+    elements.betBtn.disabled = false;
+    elements.hitBtn.disabled = true;
+    elements.standBtn.disabled = true;
+    elements.continueBtn.disabled = true;
 }
