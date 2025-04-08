@@ -27,8 +27,9 @@ header h1 {
     background-color: rgba(0, 0, 0, 0.5);
     padding: 8px;
     border-radius: 5px;
-    margin: 10px auto;
-    max-width: 90%;
+    margin: 0;
+    max-width: 200px;
+    text-align: left;
 }
 
 .game-container {
@@ -62,6 +63,15 @@ header h1 {
 .dealer-section {
     background-color: rgba(139, 0, 0, 0.5);
     position: relative;
+}
+
+.dealer-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin: 10px 0;
 }
 
 .player-section {
@@ -429,7 +439,6 @@ input {
     width: 80px;
     height: 120px;
     position: relative;
-    margin: 10px auto;
     transition: transform 0.3s ease;
 }
 
@@ -580,6 +589,16 @@ input {
         flex-direction: column;
     }
     
+    .dealer-container {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    #message-el {
+        max-width: 100%;
+        text-align: center;
+    }
+    
     .control-panel {
         flex-direction: column;
     }
@@ -678,6 +697,10 @@ input {
     .game-table {
         padding: 10px;
         gap: 10px;
+    }
+    
+    .dealer-container {
+        gap: 8px;
     }
     
     .control-panel {

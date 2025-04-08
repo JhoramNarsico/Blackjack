@@ -370,10 +370,8 @@ function triggerConfetti() {
 function updateDealerExpression(type) {
     if (!elements.dealerAvatar) return;
     
-    // Remove all expression classes
     elements.dealerAvatar.classList.remove("happy", "sad", "surprised", "winking");
     
-    // Add appropriate expression based on game state
     switch(type) {
         case "win":
             elements.dealerAvatar.classList.add("sad");
@@ -396,7 +394,6 @@ function updateDealerExpression(type) {
             break;
     }
     
-    // Reset expression after a delay
     setTimeout(() => {
         elements.dealerAvatar.classList.remove("happy", "sad", "surprised");
     }, 2000);
