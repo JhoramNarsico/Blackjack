@@ -21,7 +21,7 @@ const elements = {
     dealerAvatar: document.getElementById("dealer-avatar"),
     rulesToggleBtn: document.getElementById("rules-toggle-btn"),
     rules: document.getElementById("rules"),
-    audioToggleBtn: document.getElementById("audio-toggle-btn") // New audio toggle button
+    audioToggleBtn: document.getElementById("audio-toggle-btn")
 };
 
 // Add event listeners for buttons
@@ -31,7 +31,7 @@ elements.standBtn.addEventListener("click", stand);
 elements.continueBtn.addEventListener("click", continueGame);
 elements.resetBtn.addEventListener("click", resetGame);
 elements.rulesToggleBtn.addEventListener("click", toggleRules);
-if (elements.audioToggleBtn) { // Add listener for audio toggle
+if (elements.audioToggleBtn) {
     elements.audioToggleBtn.addEventListener("click", toggleAudio);
 }
 
@@ -124,7 +124,7 @@ const audio = {
     lose: null
 };
 
-let audioEnabled = true; // Flag to control audio playback
+let audioEnabled = true;
 
 function loadAudio(src) {
     try {
@@ -132,12 +132,12 @@ function loadAudio(src) {
         sound.volume = 0.5;
         sound.onerror = () => {
             console.error(`Failed to load audio: ${src}`);
-            sound.loadFailed = true; // Mark as failed for retry logic
+            sound.loadFailed = true;
         };
         return sound;
     } catch (e) {
         console.error(`Error creating audio for ${src}:`, e);
-        return { play: () => {}, loadFailed: true }; // Silent fallback
+        return { play: () => {}, loadFailed: true };
     }
 }
 
@@ -171,7 +171,7 @@ function retryAudio() {
 function toggleAudio() {
     audioEnabled = !audioEnabled;
     if (audioEnabled) {
-        retryAudio(); // Retry loading if enabling audio
+        retryAudio();
     } else {
         elements.messageEl.textContent = "Audio disabled.";
         setTimeout(() => {
@@ -214,9 +214,7 @@ function shuffleDeck() {
             [deck[i], deck[j]] = [deck[j], deck[i]];
         }
         if (audioEnabled) {
-            audio.shuffle.play().catch(() => {
-                console.error("Error playing shuffle sound");
-            });
+            audio.shuffle.play().catch(() => console.error("Error playing shuffle sound"));
         }
     } catch (e) {
         console.error("Error shuffling deck:", e);
@@ -613,8 +611,8 @@ function newCard() {
 
 function stand() {
     try {
-        if (!isAlive || !gameInProgress || window.dealerPlaying) {
-            elements.messageEl.textContent = "Cannot stand now. Please start a new game or wait for dealer.";
+        if (!isAlive || !gameInProgress) {
+            elements.messageEl.textContent = "Cannot stand now. Please start a new game.";
             return;
         }
         
@@ -647,66 +645,49 @@ function stand() {
     }
 }
 
-function playDealerHand() {
+async function playDealerHand() {
     try {
-        if (window.dealerPlaying) {
-            console.log("Dealer is already playing, aborting new attempt.");
-            return;
-        }
-        window.dealerPlaying = true;
+        let isDealerPlaying = true; // Local state variable to track dealer turn
 
-        if (window.dealerTimeout) {
-            clearTimeout(window.dealerTimeout);
-        }
-
-        const drawNextCard = () => {
-            if (!gameInProgress || !isAlive || dealer.cards.length >= 5) {
-                console.log(`Stopping dealer: gameInProgress=${gameInProgress}, isAlive=${isAlive}, cards=${dealer.cards.length}`);
-                determineWinner();
-                window.dealerPlaying = false;
-                return;
-            }
-
-            if (dealer.sum < 17) {
-                let newDealerCard = drawCard();
-                if (!newDealerCard) {
-                    elements.messageEl.textContent = "Error drawing dealer card.";
-                    endGame(false);
-                    window.dealerPlaying = false;
-                    return;
-                }
-                dealer.cards.push(newDealerCard);
-                dealer.sum += newDealerCard.value;
-
-                let dealerAces = dealer.cards.filter(card => card.face === 1).length;
-                while (dealer.sum > 21 && dealerAces > 0) {
-                    dealer.sum -= 10;
-                    dealerAces--;
-                }
-
-                console.log(`Dealer drew a card. Total cards: ${dealer.cards.length}, Sum: ${dealer.sum}`);
-
-                renderGame(true);
-
-                if (dealer.sum < 17 && dealer.cards.length < 5) {
-                    window.dealerTimeout = setTimeout(drawNextCard, 500);
-                } else {
-                    determineWinner();
-                    window.dealerPlaying = false;
-                }
-            } else {
-                determineWinner();
-                window.dealerPlaying = false;
-            }
-        };
+        // Helper function to delay execution
+        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
         console.log("Starting dealer turn. Initial cards:", dealer.cards.length, "Sum:", dealer.sum);
-        drawNextCard();
+
+        while (isDealerPlaying && dealer.sum < 17 && dealer.cards.length < 5) {
+            let newDealerCard = drawCard();
+            if (!newDealerCard) {
+                elements.messageEl.textContent = "Error drawing dealer card.";
+                endGame(false);
+                isDealerPlaying = false;
+                return;
+            }
+            dealer.cards.push(newDealerCard);
+            dealer.sum += newDealerCard.value;
+
+            // Adjust for aces
+            let dealerAces = dealer.cards.filter(card => card.face === 1).length;
+            while (dealer.sum > 21 && dealerAces > 0) {
+                dealer.sum -= 10;
+                dealerAces--;
+            }
+
+            console.log(`Dealer drew a card. Total cards: ${dealer.cards.length}, Sum: ${dealer.sum}`);
+
+            renderGame(true);
+            await delay(500); // Wait 500ms between card draws for animation
+
+            // Check conditions to stop drawing
+            if (dealer.sum >= 17 || dealer.cards.length >= 5) {
+                isDealerPlaying = false;
+            }
+        }
+
+        determineWinner();
     } catch (e) {
         console.error("Error in dealer play:", e);
         elements.messageEl.textContent = "Error in dealer's turn.";
         endGame(false);
-        window.dealerPlaying = false;
     }
 }
 
@@ -856,8 +837,8 @@ function resetGame() {
         elements.dealerCardsDivEl.innerHTML = "";
         
         createDeck(1);
-        audioEnabled = true; // Reset audio state
-        initializeAudio();   // Re-initialize audio
+        audioEnabled = true;
+        initializeAudio();
         
         gameHistory = [];
         updateHistory();
