@@ -20,7 +20,8 @@ const elements = {
     betInput: document.getElementById("bet-input"),
     dealerAvatar: document.getElementById("dealer-avatar"),
     rulesToggleBtn: document.getElementById("rules-toggle-btn"),
-    rules: document.getElementById("rules")
+    rules: document.getElementById("rules"),
+    audioToggleBtn: document.getElementById("audio-toggle-btn") // New audio toggle button
 };
 
 // Add event listeners for buttons
@@ -30,6 +31,9 @@ elements.standBtn.addEventListener("click", stand);
 elements.continueBtn.addEventListener("click", continueGame);
 elements.resetBtn.addEventListener("click", resetGame);
 elements.rulesToggleBtn.addEventListener("click", toggleRules);
+if (elements.audioToggleBtn) { // Add listener for audio toggle
+    elements.audioToggleBtn.addEventListener("click", toggleAudio);
+}
 
 function toggleRules() {
     elements.rules.classList.toggle("hidden");
@@ -112,29 +116,80 @@ let dealer = {
     }
 };
 
-// Audio setup with fallback
+// Audio setup with enhanced management
 const audio = {
-    deal: loadAudio('sounds/deal.mp3'),
-    shuffle: loadAudio('sounds/shuffle.mp3'),
-    win: loadAudio('sounds/win.mp3'),
-    lose: loadAudio('sounds/lose.mp3')
+    deal: null,
+    shuffle: null,
+    win: null,
+    lose: null
 };
+
+let audioEnabled = true; // Flag to control audio playback
 
 function loadAudio(src) {
     try {
         const sound = new Audio(src);
         sound.volume = 0.5;
-        sound.onerror = () => console.error(`Failed to load audio: ${src}`);
+        sound.onerror = () => {
+            console.error(`Failed to load audio: ${src}`);
+            sound.loadFailed = true; // Mark as failed for retry logic
+        };
         return sound;
     } catch (e) {
         console.error(`Error creating audio for ${src}:`, e);
-        return { play: () => {} }; // Silent fallback
+        return { play: () => {}, loadFailed: true }; // Silent fallback
+    }
+}
+
+function initializeAudio() {
+    audio.deal = loadAudio('sounds/deal.mp3');
+    audio.shuffle = loadAudio('sounds/shuffle.mp3');
+    audio.win = loadAudio('sounds/win.mp3');
+    audio.lose = loadAudio('sounds/lose.mp3');
+    updateAudioToggleUI();
+}
+
+function retryAudio() {
+    try {
+        Object.keys(audio).forEach(key => {
+            if (audio[key].loadFailed) {
+                audio[key] = loadAudio(`sounds/${key}.mp3`);
+            }
+        });
+        audioEnabled = true;
+        updateAudioToggleUI();
+        elements.messageEl.textContent = "Audio retry attempted!";
+        setTimeout(() => {
+            elements.messageEl.textContent = dealer.getRandomComment("welcome");
+        }, 1000);
+    } catch (e) {
+        console.error("Error retrying audio:", e);
+        elements.messageEl.textContent = "Failed to retry audio.";
+    }
+}
+
+function toggleAudio() {
+    audioEnabled = !audioEnabled;
+    if (audioEnabled) {
+        retryAudio(); // Retry loading if enabling audio
+    } else {
+        elements.messageEl.textContent = "Audio disabled.";
+        setTimeout(() => {
+            elements.messageEl.textContent = dealer.getRandomComment("welcome");
+        }, 1000);
+    }
+    updateAudioToggleUI();
+}
+
+function updateAudioToggleUI() {
+    if (elements.audioToggleBtn) {
+        elements.audioToggleBtn.textContent = audioEnabled ? "Disable Audio" : "Enable Audio";
+        elements.audioToggleBtn.classList.toggle("audio-off", !audioEnabled);
     }
 }
 
 // Deck management (Optimized)
 let deck = [];
-let audioEnabled = true; // Flag to disable audio if it fails repeatedly
 
 function createDeck(numDecks = 1) {
     try {
@@ -161,7 +216,6 @@ function shuffleDeck() {
         if (audioEnabled) {
             audio.shuffle.play().catch(() => {
                 console.error("Error playing shuffle sound");
-                audioEnabled = false; // Disable audio on failure
             });
         }
     } catch (e) {
@@ -198,8 +252,9 @@ function drawCard() {
     }
 }
 
-// Initialize deck
+// Initialize deck and audio
 createDeck(1);
+initializeAudio();
 
 let cards = [];
 let sum = 0;
@@ -594,20 +649,17 @@ function stand() {
 
 function playDealerHand() {
     try {
-        // Ensure only one dealer turn can run at a time
         if (window.dealerPlaying) {
             console.log("Dealer is already playing, aborting new attempt.");
             return;
         }
         window.dealerPlaying = true;
 
-        // Clear any existing timeout
         if (window.dealerTimeout) {
             clearTimeout(window.dealerTimeout);
         }
 
         const drawNextCard = () => {
-            // Check game state before proceeding
             if (!gameInProgress || !isAlive || dealer.cards.length >= 5) {
                 console.log(`Stopping dealer: gameInProgress=${gameInProgress}, isAlive=${isAlive}, cards=${dealer.cards.length}`);
                 determineWinner();
@@ -626,7 +678,6 @@ function playDealerHand() {
                 dealer.cards.push(newDealerCard);
                 dealer.sum += newDealerCard.value;
 
-                // Adjust for aces
                 let dealerAces = dealer.cards.filter(card => card.face === 1).length;
                 while (dealer.sum > 21 && dealerAces > 0) {
                     dealer.sum -= 10;
@@ -805,6 +856,8 @@ function resetGame() {
         elements.dealerCardsDivEl.innerHTML = "";
         
         createDeck(1);
+        audioEnabled = true; // Reset audio state
+        initializeAudio();   // Re-initialize audio
         
         gameHistory = [];
         updateHistory();
