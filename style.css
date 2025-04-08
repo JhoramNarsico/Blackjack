@@ -108,7 +108,7 @@ button {
     transition: all 0.2s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     font-size: 1em;
-    min-height: 44px; /* Accessible tap target size */
+    min-height: 44px;
 }
 
 button:hover {
@@ -136,7 +136,6 @@ button:disabled {
     100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
 }
 
-/* Card animations */
 @keyframes dealCard {
     0% {
         transform: translateY(-100px) rotateY(180deg);
@@ -175,7 +174,6 @@ button:disabled {
     animation: shuffle 0.3s ease-in-out 3;
 }
 
-/* Deck styling */
 .deck {
     width: 80px;
     height: 120px;
@@ -183,6 +181,7 @@ button:disabled {
     background-image: repeating-linear-gradient(45deg, #1b579e 0, #1b579e 5px, #2063a8 0, #2063a8 10px);
     border: 3px solid white;
     border-radius: 8px;
+    padding: 10px auto;
     position: relative;
     margin: 10px auto;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
@@ -220,7 +219,7 @@ input {
     text-align: center;
     font-weight: bold;
     font-size: 1em;
-    min-height: 44px; /* Accessible tap target size */
+    min-height: 44px;
 }
 
 #dealer-cards-el, #cards-el {
@@ -264,7 +263,6 @@ input {
     margin: 5px;
 }
 
-/* Card styling */
 .cards-container {
     display: flex;
     flex-direction: row;
@@ -279,7 +277,7 @@ input {
     height: 120px;
     background-color: white;
     border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 5px RGBA(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -340,7 +338,6 @@ input {
     align-self: center;
 }
 
-/* History section */
 .history-section {
     margin: 15px auto;
     max-width: 1200px;
@@ -404,7 +401,6 @@ input {
     border-left: 4px solid gray;
 }
 
-/* Confetti effect */
 .confetti-container {
     position: fixed;
     top: 0;
@@ -428,44 +424,88 @@ input {
     100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
 }
 
-/* Dealer Avatar */
+/* Enhanced Dealer Avatar */
 .dealer-avatar {
-    width: 60px;
-    height: 100px;
+    width: 80px;
+    height: 120px;
     position: relative;
     margin: 10px auto;
+    transition: transform 0.3s ease;
 }
 
 .dealer-avatar .head {
-    width: 20px;
-    height: 20px;
+    width: 30px;
+    height: 30px;
     background-color: #f0d9b5;
     border-radius: 50%;
     position: absolute;
     top: 0;
     left: 50%;
     transform: translateX(-50%);
+    overflow: hidden;
+}
+
+.dealer-avatar .eyes {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.dealer-avatar .eye {
+    width: 6px;
+    height: 6px;
+    background-color: #333;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+}
+
+.dealer-avatar .mouth {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 4px;
+    background-color: #333;
+    border-radius: 2px;
+    transition: all 0.2s ease;
 }
 
 .dealer-avatar .body {
-    width: 30px;
-    height: 40px;
+    width: 40px;
+    height: 50px;
     background-color: #333;
     position: absolute;
-    top: 20px;
+    top: 35px;
     left: 50%;
     transform: translateX(-50%);
     border-radius: 5px;
 }
 
+.dealer-avatar .tie {
+    width: 20px;
+    height: 15px;
+    background-color: #ff0000;
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    clip-path: polygon(50% 100%, 0 0, 100% 0);
+}
+
 .dealer-avatar .arm-left,
 .dealer-avatar .arm-right {
-    width: 10px;
-    height: 30px;
+    width: 12px;
+    height: 40px;
     background-color: #333;
     position: absolute;
-    top: 25px;
+    top: 40px;
     transform-origin: top center;
+    transition: transform 0.3s ease;
 }
 
 .dealer-avatar .arm-left {
@@ -484,6 +524,34 @@ input {
     animation: deal 0.5s ease-out;
 }
 
+.dealer-avatar.happy .mouth {
+    width: 16px;
+    height: 8px;
+    border-radius: 0 0 8px 8px;
+    background-color: #fff;
+}
+
+.dealer-avatar.happy .eye {
+    transform: translateY(-2px);
+}
+
+.dealer-avatar.sad .mouth {
+    width: 12px;
+    height: 8px;
+    border-radius: 8px 8px 0 0;
+}
+
+.dealer-avatar.sad .eye {
+    transform: translateY(2px);
+}
+
+.dealer-avatar.surprised .mouth {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #fff;
+}
+
 @keyframes wave {
     0% { transform: rotate(0deg); }
     25% { transform: rotate(-30deg); }
@@ -495,6 +563,15 @@ input {
     0% { transform: rotate(0deg); }
     50% { transform: rotate(-45deg) translateX(10px); }
     100% { transform: rotate(0deg); }
+}
+
+@keyframes wink {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(0.1); }
+}
+
+.dealer-avatar.winking .eye.right {
+    animation: wink 0.5s ease-in-out;
 }
 
 /* Mobile Responsiveness */
@@ -540,26 +617,47 @@ input {
     }
     
     .dealer-avatar {
-        width: 50px;
-        height: 80px;
+        width: 60px;
+        height: 90px;
     }
     
     .dealer-avatar .head {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .dealer-avatar .eyes {
+        top: 6px;
         width: 16px;
-        height: 16px;
+    }
+    
+    .dealer-avatar .eye {
+        width: 5px;
+        height: 5px;
+    }
+    
+    .dealer-avatar .mouth {
+        bottom: 4px;
+        width: 10px;
+        height: 3px;
     }
     
     .dealer-avatar .body {
-        width: 24px;
-        height: 32px;
-        top: 16px;
+        width: 32px;
+        height: 40px;
+        top: 28px;
+    }
+    
+    .dealer-avatar .tie {
+        width: 16px;
+        height: 12px;
     }
     
     .dealer-avatar .arm-left,
     .dealer-avatar .arm-right {
-        width: 8px;
-        height: 24px;
-        top: 20px;
+        width: 10px;
+        height: 32px;
+        top: 32px;
     }
 }
 
@@ -658,25 +756,46 @@ input {
     }
     
     .dealer-avatar {
-        width: 40px;
-        height: 60px;
+        width: 50px;
+        height: 75px;
     }
     
     .dealer-avatar .head {
-        width: 12px;
-        height: 12px;
+        width: 20px;
+        height: 20px;
+    }
+    
+    .dealer-avatar .eyes {
+        top: 5px;
+        width: 14px;
+    }
+    
+    .dealer-avatar .eye {
+        width: 4px;
+        height: 4px;
+    }
+    
+    .dealer-avatar .mouth {
+        bottom: 3px;
+        width: 8px;
+        height: 2px;
     }
     
     .dealer-avatar .body {
-        width: 18px;
-        height: 24px;
-        top: 12px;
+        width: 26px;
+        height: 32px;
+        top: 23px;
+    }
+    
+    .dealer-avatar .tie {
+        width: 14px;
+        height: 10px;
     }
     
     .dealer-avatar .arm-left,
     .dealer-avatar .arm-right {
-        width: 6px;
-        height: 18px;
-        top: 15px;
+        width: 8px;
+        height: 26px;
+        top: 26px;
     }
 }

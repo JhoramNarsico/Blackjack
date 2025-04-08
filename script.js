@@ -104,11 +104,13 @@ let dealer = {
             dealerBust: [
                 "Oops! I overcooked it!",
                 "Dealer down! You got lucky there!",
-                "Bust! Guess I’m not perfect after all!"
+                "Bust! Guess I’m not perfeito after all!"
             ]
         };
         try {
-            return comments[type][Math.floor(Math.random() * comments[type].length)];
+            const comment = comments[type][Math.floor(Math.random() * comments[type].length)];
+            updateDealerExpression(type);
+            return comment;
         } catch (e) {
             console.error("Error getting dealer comment:", e);
             return "Let's play!";
@@ -194,8 +196,8 @@ let deck = [];
 function createDeck(numDecks = 1) {
     try {
         deck = Array.from({ length: numDecks * 52 }, (_, i) => {
-            const suit = Math.floor(i / 13) % 4; // 0: Spades, 1: Hearts, 2: Diamonds, 3: Clubs
-            const value = (i % 13) + 1; // 1: Ace, 2-10, 11: J, 12: Q, 13: K
+            const suit = Math.floor(i / 13) % 4;
+            const value = (i % 13) + 1;
             const cardValue = value > 10 ? 10 : (value === 1 ? 11 : value);
             return { value: cardValue, face: value, suit };
         });
@@ -330,7 +332,7 @@ function createCardElement(card, isHidden = false) {
         
         cardDiv.appendChild(topSuit);
         cardDiv.appendChild(centerValue);
-        cardDiv.appendChild(bottomSuit); // Fixed typo from customSuit to bottomSuit
+        cardDiv.appendChild(bottomSuit);
         
         return cardDiv;
     } catch (e) {
@@ -363,6 +365,41 @@ function triggerConfetti() {
     } catch (e) {
         console.error("Error triggering confetti:", e);
     }
+}
+
+function updateDealerExpression(type) {
+    if (!elements.dealerAvatar) return;
+    
+    // Remove all expression classes
+    elements.dealerAvatar.classList.remove("happy", "sad", "surprised", "winking");
+    
+    // Add appropriate expression based on game state
+    switch(type) {
+        case "win":
+            elements.dealerAvatar.classList.add("sad");
+            break;
+        case "lose":
+            elements.dealerAvatar.classList.add("happy");
+            break;
+        case "blackjack":
+            elements.dealerAvatar.classList.add("surprised");
+            break;
+        case "bust":
+            elements.dealerAvatar.classList.add("happy");
+            break;
+        case "dealerBust":
+            elements.dealerAvatar.classList.add("sad");
+            break;
+        case "welcome":
+            elements.dealerAvatar.classList.add("winking");
+            setTimeout(() => elements.dealerAvatar.classList.remove("winking"), 1000);
+            break;
+    }
+    
+    // Reset expression after a delay
+    setTimeout(() => {
+        elements.dealerAvatar.classList.remove("happy", "sad", "surprised");
+    }, 2000);
 }
 
 function placeBet() {
@@ -647,9 +684,8 @@ function stand() {
 
 async function playDealerHand() {
     try {
-        let isDealerPlaying = true; // Local state variable to track dealer turn
+        let isDealerPlaying = true;
 
-        // Helper function to delay execution
         const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
         console.log("Starting dealer turn. Initial cards:", dealer.cards.length, "Sum:", dealer.sum);
@@ -665,7 +701,6 @@ async function playDealerHand() {
             dealer.cards.push(newDealerCard);
             dealer.sum += newDealerCard.value;
 
-            // Adjust for aces
             let dealerAces = dealer.cards.filter(card => card.face === 1).length;
             while (dealer.sum > 21 && dealerAces > 0) {
                 dealer.sum -= 10;
@@ -675,9 +710,8 @@ async function playDealerHand() {
             console.log(`Dealer drew a card. Total cards: ${dealer.cards.length}, Sum: ${dealer.sum}`);
 
             renderGame(true);
-            await delay(500); // Wait 500ms between card draws for animation
+            await delay(500);
 
-            // Check conditions to stop drawing
             if (dealer.sum >= 17 || dealer.cards.length >= 5) {
                 isDealerPlaying = false;
             }
