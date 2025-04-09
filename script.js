@@ -17,7 +17,8 @@ const elements = {
     standBtn: document.getElementById("stand-btn"),
     continueBtn: document.getElementById("continue-btn"),
     resetBtn: document.getElementById("reset-btn"),
-    betInput: document.getElementById("bet-input"),
+    betDisplay: document.getElementById("bet-display"),
+    chipBtns: document.querySelectorAll(".chip-btn"),
     dealerAvatar: document.getElementById("dealer-avatar"),
     rulesToggleBtn: document.getElementById("rules-toggle-btn"),
     rules: document.getElementById("rules"),
@@ -30,6 +31,7 @@ elements.hitBtn.addEventListener("click", newCard);
 elements.standBtn.addEventListener("click", stand);
 elements.continueBtn.addEventListener("click", continueGame);
 elements.resetBtn.addEventListener("click", resetGame);
+elements.chipBtns.forEach(btn => btn.addEventListener("click", adjustBet));
 elements.rulesToggleBtn.addEventListener("click", toggleRules);
 if (elements.audioToggleBtn) {
     elements.audioToggleBtn.addEventListener("click", toggleAudio);
@@ -197,9 +199,9 @@ function createDeck(numDecks = 1) {
     try {
         deck = Array.from({ length: numDecks * 52 }, (_, i) => {
             const suit = Math.floor(i / 13) % 4;
-            const value = (i % 13) + 1;
-            const cardValue = value > 10 ? 10 : (value === 1 ? 11 : value);
-            return { value: cardValue, face: value, suit };
+            const face = (i % 13) + 1; // 1 = A, 11 = J, 12 = Q, 13 = K
+            const value = face > 10 ? 10 : (face === 1 ? 11 : face); // A = 11, J/Q/K = 10
+            return { value, face, suit };
         });
         shuffleDeck();
     } catch (e) {
@@ -244,6 +246,7 @@ function drawCard() {
         if (audioEnabled) {
             audio.deal.play().catch(() => console.error("Error playing deal sound"));
         }
+        console.log("Drew card:", card);
         return card;
     } catch (e) {
         console.error("Error drawing card:", e);
@@ -262,6 +265,7 @@ let hasBlackJack = false;
 let isAlive = false;
 let gameInProgress = false;
 let betAmount = 0;
+let currentBet = 0;
 let gameHistory = [];
 
 try {
@@ -332,7 +336,7 @@ function createCardElement(card, isHidden = false) {
         
         cardDiv.appendChild(topSuit);
         cardDiv.appendChild(centerValue);
-        cardDiv.appendChild(bottomSuit);
+        cardDiv.appendChild(bottomSuit); // Fixed typo: should be bottomSuit
         
         return cardDiv;
     } catch (e) {
@@ -399,27 +403,50 @@ function updateDealerExpression(type) {
     }, 2000);
 }
 
+function adjustBet(event) {
+    try {
+        if (gameInProgress) {
+            elements.messageEl.textContent = "Cannot adjust bet during game!";
+            return;
+        }
+
+        const amountChange = parseInt(event.target.dataset.amount);
+        const newBet = currentBet + amountChange;
+
+        if (newBet > player.chips) {
+            elements.messageEl.textContent = `Maximum bet is $${player.chips}!`;
+            return;
+        }
+
+        currentBet = newBet;
+        elements.betDisplay.textContent = `$${currentBet}`;
+        elements.messageEl.textContent = currentBet === 0 ? 
+            dealer.getRandomComment("welcome") : 
+            `Bet set to $${currentBet}. Ready to place it?`;
+    } catch (e) {
+        console.error("Error adjusting bet:", e);
+        elements.messageEl.textContent = "Error adjusting bet.";
+    }
+}
+
 function placeBet() {
     try {
         if (gameInProgress) {
             elements.messageEl.textContent = "Game in progress! Finish this round first.";
             return;
         }
-        
-        const amount = parseInt(elements.betInput.value);
-        if (isNaN(amount) || amount < 5 || amount % 5 !== 0) {
-            elements.messageEl.textContent = "Please enter a valid bet amount (minimum $5, increments of 5).";
+
+        if (currentBet < 5) {
+            elements.messageEl.textContent = "Minimum bet is $5!";
             return;
         }
-        if (amount > player.chips) {
-            elements.messageEl.textContent = `You don't have enough chips! You have $${player.chips}`;
-            return;
-        }
-        
-        betAmount = amount;
+
+        betAmount = currentBet;
         elements.betEl.textContent = "Current Bet: $" + betAmount;
         elements.messageEl.textContent = dealer.getRandomComment("welcome");
-        
+
+        elements.chipBtns.forEach(btn => btn.disabled = true);
+
         elements.dealerCardsDivEl.innerHTML = "";
         elements.dealerCardsEl.textContent = "Shuffling...";
         elements.dealerCardsEl.classList.add("shuffle-animation");
@@ -433,36 +460,77 @@ function placeBet() {
             audio.shuffle.play().catch(e => console.error("Error playing shuffle sound:", e));
         }
 
-        setTimeout(() => {
+        setTimeout(async () => {
             try {
                 elements.dealerCardsEl.classList.remove("shuffle-animation");
                 elements.cardsEl.classList.remove("shuffle-animation");
                 elements.deckEl.classList.remove("shuffle-animation");
-                
+
                 gameInProgress = true;
                 isAlive = true;
                 hasBlackJack = false;
-                
-                let firstCard = drawCard();
-                let secondCard = drawCard();
-                if (!firstCard || !secondCard) throw new Error("Failed to draw initial cards");
-                cards = [firstCard, secondCard];
-                sum = firstCard.value + secondCard.value;
-                
-                checkForAces();
-                
+
+                cards = [];
+                dealer.cards = [];
+                dealer.sum = 0;
+                sum = 0;
+
+                const firstCard = drawCard();
+                if (!firstCard) throw new Error("Failed to draw player's first card");
+                cards.push(firstCard);
+                sum += firstCard.value;
+                console.log("Player card 1:", firstCard, "Sum:", sum);
+                renderGame();
+                const firstCardElem = elements.cardsDivEl.lastChild;
+                firstCardElem.classList.add("new-card");
+                await new Promise(resolve => setTimeout(resolve, 500));
+                firstCardElem.classList.remove("new-card");
+
+                const secondCard = drawCard();
+                if (!secondCard) throw new Error("Failed to draw player's second card");
+                cards.push(secondCard);
+                sum += secondCard.value;
+                console.log("Player card 2:", secondCard, "Sum:", sum);
+                renderGame();
+                const secondCardElem = elements.cardsDivEl.lastChild;
+                secondCardElem.classList.add("new-card");
+                await new Promise(resolve => setTimeout(resolve, 500));
+                secondCardElem.classList.remove("new-card");
+
                 dealer.hiddenCard = drawCard();
-                let dealerVisibleCard = drawCard();
-                if (!dealer.hiddenCard || !dealerVisibleCard) throw new Error("Failed to draw dealer cards");
+                if (!dealer.hiddenCard) throw new Error("Failed to draw dealer's hidden card");
+                const dealerVisibleCard = drawCard();
+                if (!dealerVisibleCard) throw new Error("Failed to draw dealer's visible card");
                 dealer.cards = [dealer.hiddenCard, dealerVisibleCard];
-                dealer.sum = dealer.hiddenCard.value + dealerVisibleCard.value;
-                
+                dealer.sum = calculateHandValue(dealer.cards); // Use helper function
+                console.log("Dealer hidden card:", dealer.hiddenCard);
+                console.log("Dealer visible card:", dealerVisibleCard);
+                console.log("Dealer initial sum:", dealer.sum);
+                renderGame();
+                const dealerVisibleCardElem = elements.dealerCardsDivEl.lastChild;
+                dealerVisibleCardElem.classList.add("new-card");
+                await new Promise(resolve => setTimeout(resolve, 500));
+                dealerVisibleCardElem.classList.remove("new-card");
+
+                checkForAces();
+                console.log("Player sum after aces:", sum);
+
                 elements.betBtn.disabled = true;
                 elements.hitBtn.disabled = false;
                 elements.standBtn.disabled = false;
                 elements.continueBtn.disabled = true;
-                
-                renderGame();
+
+                if (sum > 21) {
+                    elements.messageEl.textContent = dealer.getRandomComment("bust");
+                    isAlive = false;
+                    endGame(false);
+                } else if (sum === 21 && cards.length === 2) {
+                    elements.messageEl.textContent = dealer.getRandomComment("blackjack");
+                    hasBlackJack = true;
+                    endGame(true, 1.5);
+                } else {
+                    elements.messageEl.textContent = "Do you want to draw a new card?";
+                }
             } catch (e) {
                 console.error("Error starting game:", e);
                 elements.messageEl.textContent = "Error starting game. Please try again.";
@@ -494,13 +562,16 @@ function continueGame() {
         dealer.sum = 0;
         hasBlackJack = false;
         betAmount = 0;
+        currentBet = 0;
         
         elements.messageEl.textContent = dealer.getRandomComment("welcome");
         elements.betEl.textContent = "Current Bet: $0";
+        elements.betDisplay.textContent = "$0";
         elements.betBtn.disabled = false;
         elements.hitBtn.disabled = true;
         elements.standBtn.disabled = true;
         elements.continueBtn.disabled = true;
+        elements.chipBtns.forEach(btn => btn.disabled = false);
         
         elements.sumEl.textContent = "Your Sum:";
         elements.dealerSumEl.textContent = "Dealer Sum:";
@@ -516,13 +587,9 @@ function renderGame(isDealerHit = false) {
         elements.dealerCardsDivEl.innerHTML = "";
         
         elements.cardsEl.textContent = "Your Cards:";
-        cards.forEach((card, index) => {
+        cards.forEach(card => {
             const cardElem = createCardElement(card);
             elements.cardsDivEl.appendChild(cardElem);
-            setTimeout(() => {
-                cardElem.classList.add("new-card");
-                setTimeout(() => cardElem.classList.remove("new-card"), 500);
-            }, index * 100);
         });
         
         elements.dealerCardsEl.textContent = "Dealer Cards:";
@@ -531,60 +598,22 @@ function renderGame(isDealerHit = false) {
             elements.dealerCardsDivEl.appendChild(hiddenCardElem);
             const visibleCardElem = createCardElement(dealer.cards[1]);
             elements.dealerCardsDivEl.appendChild(visibleCardElem);
-            setTimeout(() => {
-                visibleCardElem.classList.add("new-card");
-                setTimeout(() => visibleCardElem.classList.remove("new-card"), 500);
-            }, 100);
             elements.dealerSumEl.textContent = "Dealer Sum: ?";
-            if (elements.dealerAvatar) {
-                elements.dealerAvatar.classList.add("dealing");
-                setTimeout(() => elements.dealerAvatar.classList.remove("dealing"), 500);
-            }
         } else {
             dealer.cards.forEach((card, index) => {
                 const cardElem = createCardElement(card);
-                elements.dealerCardsDivEl.appendChild(cardElem);
                 if (isDealerHit && index === dealer.cards.length - 1) {
-                    setTimeout(() => {
-                        cardElem.classList.add("new-card");
-                        if (elements.dealerAvatar) {
-                            elements.dealerAvatar.classList.add("dealing");
-                            setTimeout(() => elements.dealerAvatar.classList.remove("dealing"), 500);
-                        }
-                        setTimeout(() => cardElem.classList.remove("new-card"), 500);
-                    }, index * 100);
-                } else {
-                    setTimeout(() => {
-                        cardElem.classList.add("new-card");
-                        setTimeout(() => cardElem.classList.remove("new-card"), 500);
-                    }, index * 100);
+                    cardElem.classList.add("new-card");
+                    setTimeout(() => cardElem.classList.remove("new-card"), 500);
+                } else if (index === 0 && !gameInProgress) {
+                    cardElem.classList.add("revealed");
                 }
+                elements.dealerCardsDivEl.appendChild(cardElem);
             });
             elements.dealerSumEl.textContent = "Dealer Sum: " + dealer.sum;
         }
         
         elements.sumEl.textContent = "Your Sum: " + sum;
-        
-        if (sum < 21) {
-            elements.messageEl.textContent = "Do you want to draw a new card?";
-        } else if (sum === 21) {
-            if (cards.length === 2) {
-                elements.messageEl.textContent = dealer.getRandomComment("blackjack");
-                hasBlackJack = true;
-                const playerCards = document.querySelectorAll('#cards-div .card');
-                playerCards.forEach((card, index) => {
-                    card.style.animation = `standEffect 0.5s ease-out ${index * 0.1}s, pulse 1s ease-in-out ${index * 0.1 + 0.5}s 2`;
-                });
-                endGame(true, 1.5);
-            } else {
-                elements.messageEl.textContent = "You've got 21!";
-                stand();
-            }
-        } else {
-            elements.messageEl.textContent = dealer.getRandomComment("bust");
-            isAlive = false;
-            endGame(false);
-        }
     } catch (e) {
         console.error("Error rendering game:", e);
         elements.messageEl.textContent = "Error rendering game state.";
@@ -629,14 +658,28 @@ function newCard() {
             elements.messageEl.textContent = "Cannot hit now. Please continue or start a new game.";
             return;
         }
-        
-        let card = drawCard();
+
+        const card = drawCard();
         if (!card) throw new Error("No card drawn");
-        sum += card.value;
         cards.push(card);
-        
+        sum += card.value;
+
         checkForAces();
         renderGame();
+        const newCardElement = elements.cardsDivEl.lastChild;
+        newCardElement.classList.add("new-card");
+        setTimeout(() => newCardElement.classList.remove("new-card"), 500);
+
+        if (sum > 21) {
+            elements.messageEl.textContent = dealer.getRandomComment("bust");
+            isAlive = false;
+            endGame(false);
+        } else if (sum === 21) {
+            elements.messageEl.textContent = "You've got 21!";
+            stand();
+        } else {
+            elements.messageEl.textContent = "Do you want to draw a new card?";
+        }
     } catch (e) {
         console.error("Error drawing new card:", e);
         elements.messageEl.textContent = "Error drawing card.";
@@ -649,25 +692,26 @@ function stand() {
             elements.messageEl.textContent = "Cannot stand now. Please start a new game.";
             return;
         }
-        
+
         const playerCards = document.querySelectorAll('#cards-div .card');
         playerCards.forEach(card => card.classList.add('stand-effect'));
-        
-        setTimeout(() => {
+
+        setTimeout(async () => {
             try {
                 gameInProgress = false;
                 const hiddenCard = document.querySelector('#dealer-cards-div .card-back');
                 if (hiddenCard) {
                     hiddenCard.classList.add('reveal');
-                    setTimeout(() => {
-                        hiddenCard.remove();
-                        const revealedCard = createCardElement(dealer.hiddenCard);
-                        elements.dealerCardsDivEl.insertBefore(revealedCard, elements.dealerCardsDivEl.firstChild);
-                        playDealerHand();
-                    }, 250);
-                } else {
-                    playDealerHand();
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    hiddenCard.remove();
+                    const revealedCard = createCardElement(dealer.hiddenCard);
+                    revealedCard.classList.add("revealed");
+                    elements.dealerCardsDivEl.insertBefore(revealedCard, elements.dealerCardsDivEl.firstChild);
+                    revealedCard.classList.add("new-card");
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    revealedCard.classList.remove("new-card");
                 }
+                await playDealerHand();
             } catch (e) {
                 console.error("Error revealing dealer card:", e);
                 elements.messageEl.textContent = "Error in dealer turn.";
@@ -679,16 +723,42 @@ function stand() {
     }
 }
 
+// Helper function to calculate hand value with ace adjustment
+function calculateHandValue(cards) {
+    let sum = 0;
+    let aces = 0;
+
+    // Calculate total and count aces
+    for (let card of cards) {
+        if (!card || !card.hasOwnProperty("value") || !card.hasOwnProperty("face")) {
+            console.error("Invalid card detected:", card);
+            return 0; // Fallback to avoid breaking the game
+        }
+        sum += card.value; // Use initial value (A = 11, J/Q/K = 10, etc.)
+        if (card.face === 1) aces++; // Count aces
+    }
+
+    // Adjust for aces if sum exceeds 21
+    while (sum > 21 && aces > 0) {
+        sum -= 10; // Change an ace from 11 to 1
+        aces--;
+    }
+
+    return sum;
+}
+
 async function playDealerHand() {
     try {
         let isDealerPlaying = true;
-
         const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-        console.log("Starting dealer turn. Initial cards:", dealer.cards.length, "Sum:", dealer.sum);
+        // Initial dealer sum with proper ace handling
+        dealer.sum = calculateHandValue(dealer.cards);
+        console.log("Dealer starting hand:", dealer.cards.map(c => `${c.face} (${c.value})`), "Sum:", dealer.sum);
 
+        // Dealer hits until sum >= 17 or busts (or reaches 5 cards)
         while (isDealerPlaying && dealer.sum < 17 && dealer.cards.length < 5) {
-            let newDealerCard = drawCard();
+            const newDealerCard = drawCard();
             if (!newDealerCard) {
                 elements.messageEl.textContent = "Error drawing dealer card.";
                 endGame(false);
@@ -696,18 +766,15 @@ async function playDealerHand() {
                 return;
             }
             dealer.cards.push(newDealerCard);
-            dealer.sum += newDealerCard.value;
+            dealer.sum = calculateHandValue(dealer.cards); // Recalculate with new card
 
-            let dealerAces = dealer.cards.filter(card => card.face === 1).length;
-            while (dealer.sum > 21 && dealerAces > 0) {
-                dealer.sum -= 10;
-                dealerAces--;
-            }
-
-            console.log(`Dealer drew a card. Total cards: ${dealer.cards.length}, Sum: ${dealer.sum}`);
+            console.log("Dealer drew:", `${newDealerCard.face} (${newDealerCard.value})`, "New sum:", dealer.sum);
 
             renderGame(true);
+            const newCardElement = elements.dealerCardsDivEl.lastChild;
+            newCardElement.classList.add("new-card");
             await delay(500);
+            newCardElement.classList.remove("new-card");
 
             if (dealer.sum >= 17 || dealer.cards.length >= 5) {
                 isDealerPlaying = false;
@@ -752,6 +819,7 @@ function endGame(playerWins, multiplier = 1) {
         elements.hitBtn.disabled = true;
         elements.standBtn.disabled = true;
         elements.continueBtn.disabled = false;
+        elements.chipBtns.forEach(btn => btn.disabled = false);
         
         let result = "";
         let winAmount = 0;
@@ -792,6 +860,7 @@ function endGame(playerWins, multiplier = 1) {
             elements.messageEl.textContent += " Game over! You're out of chips!";
             elements.betBtn.disabled = true;
             elements.continueBtn.disabled = true;
+            elements.chipBtns.forEach(btn => btn.disabled = true);
             elements.resetBtn.classList.add("highlight-button");
         }
     } catch (e) {
@@ -857,7 +926,9 @@ function resetGame() {
         elements.playerEl.textContent = player.name + ": $" + player.chips;
         gameInProgress = false;
         betAmount = 0;
+        currentBet = 0;
         elements.betEl.textContent = "Current Bet: $0";
+        elements.betDisplay.textContent = "$0";
         elements.messageEl.textContent = dealer.personalities[Math.floor(Math.random() * dealer.personalities.length)];
         elements.cardsEl.textContent = "Your Cards:";
         elements.sumEl.textContent = "Your Sum:";
@@ -879,6 +950,7 @@ function resetGame() {
         elements.hitBtn.disabled = true;
         elements.standBtn.disabled = true;
         elements.continueBtn.disabled = true;
+        elements.chipBtns.forEach(btn => btn.disabled = false);
         elements.resetBtn.classList.remove("highlight-button");
 
         if (elements.dealerAvatar) {
@@ -904,4 +976,5 @@ function resetGameState() {
     elements.hitBtn.disabled = true;
     elements.standBtn.disabled = true;
     elements.continueBtn.disabled = true;
+    elements.chipBtns.forEach(btn => btn.disabled = false);
 }
