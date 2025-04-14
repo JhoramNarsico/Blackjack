@@ -125,7 +125,9 @@ const audio = {
     deal: null,
     shuffle: null,
     win: null,
-    lose: null
+    lose: null,
+    chip: null,    // Added for chip sound
+    blackjack: null // Added for blackjack sound
 };
 
 let audioEnabled = true;
@@ -133,7 +135,7 @@ let audioEnabled = true;
 function loadAudio(src) {
     try {
         const sound = new Audio(src);
-        sound.volume = 0.5;
+        sound.volume = 0.5; // Adjust volume if needed for specific sounds
         sound.onerror = () => {
             console.error(`Failed to load audio: ${src}`);
             sound.loadFailed = true;
@@ -150,6 +152,8 @@ function initializeAudio() {
     audio.shuffle = loadAudio('sounds/shuffle.mp3');
     audio.win = loadAudio('sounds/win.mp3');
     audio.lose = loadAudio('sounds/lose.mp3');
+    audio.chip = loadAudio('sounds/chip.mp3'); // Load chip sound
+    audio.blackjack = loadAudio('sounds/blackjack.mp3'); // Load blackjack sound
     updateAudioToggleUI();
 }
 
@@ -336,7 +340,7 @@ function createCardElement(card, isHidden = false) {
         
         cardDiv.appendChild(topSuit);
         cardDiv.appendChild(centerValue);
-        cardDiv.appendChild(bottomSuit); // Fixed typo: should be bottomSuit
+        cardDiv.appendChild(bottomSuit);
         
         return cardDiv;
     } catch (e) {
@@ -423,6 +427,11 @@ function adjustBet(event) {
         elements.messageEl.textContent = currentBet === 0 ? 
             dealer.getRandomComment("welcome") : 
             `Bet set to $${currentBet}. Ready to place it?`;
+
+        // Play chip sound
+        if (audioEnabled && audio.chip && !audio.chip.loadFailed) {
+            audio.chip.play().catch(e => console.error("Error playing chip sound:", e));
+        }
     } catch (e) {
         console.error("Error adjusting bet:", e);
         elements.messageEl.textContent = "Error adjusting bet.";
@@ -502,7 +511,7 @@ function placeBet() {
                 const dealerVisibleCard = drawCard();
                 if (!dealerVisibleCard) throw new Error("Failed to draw dealer's visible card");
                 dealer.cards = [dealer.hiddenCard, dealerVisibleCard];
-                dealer.sum = calculateHandValue(dealer.cards); // Use helper function
+                dealer.sum = calculateHandValue(dealer.cards);
                 console.log("Dealer hidden card:", dealer.hiddenCard);
                 console.log("Dealer visible card:", dealerVisibleCard);
                 console.log("Dealer initial sum:", dealer.sum);
@@ -527,6 +536,10 @@ function placeBet() {
                 } else if (sum === 21 && cards.length === 2) {
                     elements.messageEl.textContent = dealer.getRandomComment("blackjack");
                     hasBlackJack = true;
+                    // Play blackjack sound
+                    if (audioEnabled && audio.blackjack && !audio.blackjack.loadFailed) {
+                        audio.blackjack.play().catch(e => console.error("Error playing blackjack sound:", e));
+                    }
                     endGame(true, 1.5);
                 } else {
                     elements.messageEl.textContent = "Do you want to draw a new card?";
@@ -728,19 +741,17 @@ function calculateHandValue(cards) {
     let sum = 0;
     let aces = 0;
 
-    // Calculate total and count aces
     for (let card of cards) {
         if (!card || !card.hasOwnProperty("value") || !card.hasOwnProperty("face")) {
             console.error("Invalid card detected:", card);
-            return 0; // Fallback to avoid breaking the game
+            return 0;
         }
-        sum += card.value; // Use initial value (A = 11, J/Q/K = 10, etc.)
-        if (card.face === 1) aces++; // Count aces
+        sum += card.value;
+        if (card.face === 1) aces++;
     }
 
-    // Adjust for aces if sum exceeds 21
     while (sum > 21 && aces > 0) {
-        sum -= 10; // Change an ace from 11 to 1
+        sum -= 10;
         aces--;
     }
 
@@ -752,11 +763,9 @@ async function playDealerHand() {
         let isDealerPlaying = true;
         const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-        // Initial dealer sum with proper ace handling
         dealer.sum = calculateHandValue(dealer.cards);
         console.log("Dealer starting hand:", dealer.cards.map(c => `${c.face} (${c.value})`), "Sum:", dealer.sum);
 
-        // Dealer hits until sum >= 17 or busts (or reaches 5 cards)
         while (isDealerPlaying && dealer.sum < 17 && dealer.cards.length < 5) {
             const newDealerCard = drawCard();
             if (!newDealerCard) {
@@ -766,7 +775,7 @@ async function playDealerHand() {
                 return;
             }
             dealer.cards.push(newDealerCard);
-            dealer.sum = calculateHandValue(dealer.cards); // Recalculate with new card
+            dealer.sum = calculateHandValue(dealer.cards);
 
             console.log("Dealer drew:", `${newDealerCard.face} (${newDealerCard.value})`, "New sum:", dealer.sum);
 
