@@ -126,8 +126,8 @@ const audio = {
     shuffle: null,
     win: null,
     lose: null,
-    chip: null,    // Added for chip sound
-    blackjack: null // Added for blackjack sound
+    chip: null,
+    blackjack: null
 };
 
 let audioEnabled = true;
@@ -135,7 +135,7 @@ let audioEnabled = true;
 function loadAudio(src) {
     try {
         const sound = new Audio(src);
-        sound.volume = 0.5; // Adjust volume if needed for specific sounds
+        sound.volume = 0.5;
         sound.onerror = () => {
             console.error(`Failed to load audio: ${src}`);
             sound.loadFailed = true;
@@ -152,8 +152,8 @@ function initializeAudio() {
     audio.shuffle = loadAudio('sounds/shuffle.mp3');
     audio.win = loadAudio('sounds/win.mp3');
     audio.lose = loadAudio('sounds/lose.mp3');
-    audio.chip = loadAudio('sounds/chip.mp3'); // Load chip sound
-    audio.blackjack = loadAudio('sounds/blackjack.mp3'); // Load blackjack sound
+    audio.chip = loadAudio('sounds/chip.mp3');
+    audio.blackjack = loadAudio('sounds/blackjack.mp3');
     updateAudioToggleUI();
 }
 
@@ -447,6 +447,12 @@ function placeBet() {
 
         if (currentBet < 5) {
             elements.messageEl.textContent = "Minimum bet is $5!";
+            return;
+        }
+
+        // Check if bet exceeds player's chips
+        if (currentBet > player.chips) {
+            elements.messageEl.textContent = `You only have $${player.chips}! Cannot bet $${currentBet}.`;
             return;
         }
 
@@ -881,7 +887,7 @@ function endGame(playerWins, multiplier = 1) {
 function updateHistory() {
     try {
         elements.historyEl.innerHTML = "";
-        const startIndex = Math.max(0, gameHistory.length - 5);
+        const startIndex = Math.max(0, gameHistoryruit.length - 5);
         
         for (let i = startIndex; i < gameHistory.length; i++) {
             const game = gameHistory[i];
